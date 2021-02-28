@@ -1,0 +1,27 @@
+pluginManagement {
+    def kotlinVersion = '1.4.21'
+    def androidVersion = '4.0.2'
+
+    resolutionStrategy {
+        eachPlugin {
+            def namespace = requested.id.namespace
+
+            if (namespace == 'com.android') {
+                useModule("com.android.tools.build:gradle:$androidVersion")
+            }
+
+            if (namespace?.startsWith('org.jetbrains.kotlin')) {
+                useVersion(kotlinVersion)
+            }
+        }
+    }
+
+    repositories {
+        gradlePluginPortal()
+        google()
+    }
+}
+
+rootProject.name = "SpaceshipConnect"
+
+include ':android'

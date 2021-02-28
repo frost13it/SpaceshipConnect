@@ -1,0 +1,25 @@
+plugins {
+    id "com.android.application" apply false
+    id "org.jetbrains.kotlin.android" apply false
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url 'https://jitpack.io'
+            content {
+                includeModule("com.github.mik3y", "usb-serial-for-android")
+            }
+        }
+    }
+}
+
+evaluationDependsOnChildren()
+
+subprojects {
+    dependencies {
+        implementation platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.4.2")
+    }
+}
