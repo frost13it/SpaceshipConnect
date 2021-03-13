@@ -61,5 +61,3 @@ generate_arduino_firmware(main SKETCH SpaceshipConnector.ino LIBS Spaceship)
 generate_arduino_firmware(hvac_segments_test SKETCH examples/hvac_segments_test LIBS Spaceship)
 generate_arduino_firmware(text_font_editor SKETCH examples/text_font_editor LIBS Spaceship)
 generate_arduino_firmware(segment_walker SKETCH examples/segment_walker LIBS Spaceship)
-# todo: remove after debug
-generate_arduino_firmware(rtc_debug SKETCH examples/rtc_debug LIBS Spaceship)
