@@ -1,11 +1,12 @@
 #include "SpaceshipDisplay.h"
 
 typedef SpaceshipDisplay::Text Text;
+typedef SpaceshipDisplay::Glyph Glyph;
 
 static constexpr uint8_t FIRST_GLYPH_CODE = 0x20;
-static constexpr uint8_t S_G_1 = Text::SUBSTITUTE_GLYPH >> 16;
-static constexpr uint8_t SUBST_GL_2 = Text::SUBSTITUTE_GLYPH >> 8;
-static constexpr uint8_t SUBST_GL_3 = Text::SUBSTITUTE_GLYPH & 0xFF;
+static constexpr uint8_t S_G_1 = Text::SUBSTITUTE_GLYPH_DATA >> 16;
+static constexpr uint8_t SUBST_GL_2 = Text::SUBSTITUTE_GLYPH_DATA >> 8;
+static constexpr uint8_t SUBST_GL_3 = Text::SUBSTITUTE_GLYPH_DATA & 0xFF;
 
 /*
  * Font for 19-segment text sections. Text encoding is codepage 1251.
@@ -247,19 +248,22 @@ const uint8_t Text::GLYPHS[] = {
         0b011, 0b00110110, 0b10100111, // ff, я
 };
 
-uint32_t Text::getGlyph(char character) {
+const Glyph Text::SUBSTITUTE_GLYPH = Glyph::from(SUBSTITUTE_GLYPH_DATA);
+
+Glyph Text::getGlyph(char character) {
     auto codePoint = (unsigned char) character;
     if (codePoint < FIRST_GLYPH_CODE) return SUBSTITUTE_GLYPH;
     auto glyphPtr = GLYPHS + (codePoint - FIRST_GLYPH_CODE) * 3;
-    auto byte1 = pgm_read_byte(glyphPtr);
-    auto byte2 = pgm_read_byte(glyphPtr + 1);
-    auto byte3 = pgm_read_byte(glyphPtr + 2);
-    return (uint32_t) byte1 << 16 | (uint32_t) byte2 << 8 | byte3;
+    return Glyph{{
+            pgm_read_byte(glyphPtr),
+            pgm_read_byte(glyphPtr + 1),
+            pgm_read_byte(glyphPtr + 2)
+    }};
 }
 
 void Text::clear() {
     for (int i = 0; i < SIZE; ++i) {
-        showGlyph(i, 0, 0, 0);
+        showGlyph(i, Glyph::BLANK);
     }
     dash(false);
     backtick(false);
@@ -276,16 +280,7 @@ void Text::showString(uint8_t startIndex, const char *string) {
 }
 
 void Text::showCharacter(uint8_t index, char character) {
-    auto codePoint = (unsigned char) character;
-    if (codePoint >= FIRST_GLYPH_CODE) {
-        auto glyphPtr = GLYPHS + (codePoint - FIRST_GLYPH_CODE) * 3;
-        auto byte1 = pgm_read_byte(glyphPtr);
-        auto byte2 = pgm_read_byte(glyphPtr + 1);
-        auto byte3 = pgm_read_byte(glyphPtr + 2);
-        showGlyph(index, byte1, byte2, byte3);
-    } else {
-        showGlyph(index, SUBSTITUTE_GLYPH);
-    }
+    showGlyph(index, getGlyph(character));
 }
 
 static uint16_t indexToOffset(uint8_t index) {
@@ -294,31 +289,30 @@ static uint16_t indexToOffset(uint8_t index) {
     return offset;
 }
 
-void Text::showGlyph(uint8_t index, uint32_t glyph) {
-    showGlyph(index, glyph >> 16, glyph >> 8, glyph);
-}
-
-void Text::showGlyph(uint8_t index, uint8_t byte1, uint8_t byte2, uint8_t byte3) {
+void Text::showGlyph(uint8_t index, Glyph glyph) {
     auto offset = indexToOffset(index);
-    segments.writeSegment(16 + offset, byte3 & 1);
-    segments.writeSegment(14 + offset, byte3 & 1 << 1);
-    segments.writeSegment(15 + offset, byte3 & 1 << 2);
-    segments.writeSegment(96 + offset, byte3 & 1 << 3);
-    segments.writeSegment(17 + offset, byte3 & 1 << 4);
-    segments.writeSegment(18 + offset, byte3 & 1 << 5);
-    segments.writeSegment(94 + offset, byte3 & 1 << 6);
-    segments.writeSegment(98 + offset, byte3 & 1 << 7);
-    segments.writeSegment(95 + offset, byte2 & 1);
-    segments.writeSegment(176 + offset, byte2 & 1 << 1);
-    segments.writeSegment(97 + offset, byte2 & 1 << 2);
-    segments.writeSegment(174 + offset, byte2 & 1 << 3);
-    segments.writeSegment(178 + offset, byte2 & 1 << 4);
-    segments.writeSegment(175 + offset, byte2 & 1 << 5);
-    segments.writeSegment(256 + offset, byte2 & 1 << 6);
-    segments.writeSegment(177 + offset, byte2 & 1 << 7);
-    segments.writeSegment(254 + offset, byte1 & 1);
-    segments.writeSegment(258 + offset, byte1 & 1 << 1);
-    segments.writeSegment(255 + offset, byte1 & 1 << 2);
+    auto byte2 = glyph.data[2];
+    segments.writeSegment(16 + offset, byte2 & 1);
+    segments.writeSegment(14 + offset, byte2 & 1 << 1);
+    segments.writeSegment(15 + offset, byte2 & 1 << 2);
+    segments.writeSegment(96 + offset, byte2 & 1 << 3);
+    segments.writeSegment(17 + offset, byte2 & 1 << 4);
+    segments.writeSegment(18 + offset, byte2 & 1 << 5);
+    segments.writeSegment(94 + offset, byte2 & 1 << 6);
+    segments.writeSegment(98 + offset, byte2 & 1 << 7);
+    auto byte1 = glyph.data[1];
+    segments.writeSegment(95 + offset, byte1 & 1);
+    segments.writeSegment(176 + offset, byte1 & 1 << 1);
+    segments.writeSegment(97 + offset, byte1 & 1 << 2);
+    segments.writeSegment(174 + offset, byte1 & 1 << 3);
+    segments.writeSegment(178 + offset, byte1 & 1 << 4);
+    segments.writeSegment(175 + offset, byte1 & 1 << 5);
+    segments.writeSegment(256 + offset, byte1 & 1 << 6);
+    segments.writeSegment(177 + offset, byte1 & 1 << 7);
+    auto byte0 = glyph.data[0];
+    segments.writeSegment(254 + offset, byte0 & 1);
+    segments.writeSegment(258 + offset, byte0 & 1 << 1);
+    segments.writeSegment(255 + offset, byte0 & 1 << 2);
 }
 
 void Text::dash(bool value) {

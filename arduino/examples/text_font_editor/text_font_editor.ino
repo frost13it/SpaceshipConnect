@@ -13,16 +13,16 @@ void setup() {
 
 static int BLINK_DELAY = 250;
 
-uint32_t glyphs[SpaceshipDisplay::Text::SIZE] = {0};
+SpaceshipDisplay::Glyph glyphs[SpaceshipDisplay::Text::SIZE] = {SpaceshipDisplay::Glyph::BLANK};
 int cursorPosition = 0;
 bool highlightCurrent = false;
 int blinkDelay = BLINK_DELAY;
 bool charInput = false;
 
-void dumpByte(uint32_t word, uint8_t shift, uint8_t len) {
+void dumpByte(uint8_t byte, uint8_t len) {
     Serial.print("0b");
     for (int i = len - 1; i >= 0; --i) {
-        Serial.print(word >> (shift + i) & 1);
+        Serial.print(byte >> i & 1);
     }
     Serial.print(", ");
 }
@@ -32,9 +32,9 @@ void loop() {
     display.media.mp3(charInput);
     display.media.wma(!charInput);
     for (int i = 0; i < SpaceshipDisplay::Text::SIZE; ++i) {
-        uint32_t glyph = glyphs[i];
+        auto glyph = glyphs[i];
         if (i == cursorPosition && highlightCurrent) {
-            glyph = ~glyph;
+            glyph = SpaceshipDisplay::Glyph::from(~glyph.toUint32());
         }
         display.text.showGlyph(i, glyph);
     }
@@ -59,14 +59,14 @@ void loop() {
                 return;
             case 3: {
                 auto glyph = glyphs[cursorPosition];
-                dumpByte(glyph, 16, 3);
-                dumpByte(glyph, 8, 8);
-                dumpByte(glyph, 0, 8);
+                dumpByte(glyph.data[0], 3);
+                dumpByte(glyph.data[1], 8);
+                dumpByte(glyph.data[2], 8);
                 Serial.println();
                 return;
             }
             case 4:
-                glyphs[cursorPosition] = 0;
+                glyphs[cursorPosition] = SpaceshipDisplay::Glyph::BLANK;
                 return;
             case 5:
                 charInput = !charInput;
@@ -78,7 +78,9 @@ void loop() {
         return;
     } else if (command >= 'a' && command < 'a' + 19) {
         auto bit = command - 'a';
-        bitToggle(glyphs[cursorPosition], bit);
+        auto glyphData = glyphs[cursorPosition].toUint32();
+        bitToggle(glyphData, bit);
+        glyphs[cursorPosition] = SpaceshipDisplay::Glyph::from(glyphData);
         return;
     }
     Serial.print(F("Unknown command: "));

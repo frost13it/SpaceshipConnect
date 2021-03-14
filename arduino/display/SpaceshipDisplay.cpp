@@ -75,3 +75,17 @@ void SpaceshipDisplay::renderTwoDigitNumber(uint8_t *digits, int8_t value) {
         digits[1] = DIGIT_ERROR;
     }
 }
+
+const SpaceshipDisplay::Glyph SpaceshipDisplay::Glyph::from(uint32_t data) {
+    return SpaceshipDisplay::Glyph{{
+            static_cast<uint8_t>(data >> 16),
+            static_cast<uint8_t>(data >> 8),
+            static_cast<uint8_t>(data)
+    }};
+}
+
+uint32_t SpaceshipDisplay::Glyph::toUint32() const {
+    return (data[0] << 16) | (data[1] << 8) | data[2];
+}
+
+const SpaceshipDisplay::Glyph SpaceshipDisplay::Glyph::BLANK = from(0);

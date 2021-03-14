@@ -32,6 +32,17 @@ public:
 
     void setAll();
 
+    struct Glyph {
+        uint8_t data[3];
+
+        uint32_t toUint32() const;
+
+        static const Glyph from(uint32_t data);
+
+        static const Glyph BLANK;
+
+    };
+
     class Section {
 
     protected:
@@ -80,9 +91,10 @@ public:
     public:
 
         static constexpr uint8_t SIZE = 11;
-        static constexpr uint32_t SUBSTITUTE_GLYPH = 0b0000000001000000000;
+        static constexpr uint32_t SUBSTITUTE_GLYPH_DATA = 0b0000000001000000000;
+        static const Glyph SUBSTITUTE_GLYPH;
 
-        static uint32_t getGlyph(char character);
+        static Glyph getGlyph(char character);
 
         void clear() override;
 
@@ -90,9 +102,7 @@ public:
 
         void showCharacter(uint8_t index, char character);
 
-        void showGlyph(uint8_t index, uint32_t glyph);
-
-        void showGlyph(uint8_t index, uint8_t byte1, uint8_t byte2, uint8_t byte3);
+        void showGlyph(uint8_t index, const Glyph glyph);
 
         void dash(bool value);
 
