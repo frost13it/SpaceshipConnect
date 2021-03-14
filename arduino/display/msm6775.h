@@ -53,6 +53,8 @@ namespace msm6775 {
 
         void writeAll(bool value);
 
+        bool readSegment(uint16_t index);
+
         void commitState();
 
     private:

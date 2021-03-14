@@ -250,7 +250,7 @@ const uint8_t Text::GLYPHS[] = {
 
 const Glyph Text::SUBSTITUTE_GLYPH = Glyph::from(SUBSTITUTE_GLYPH_DATA);
 
-Glyph Text::getGlyph(char character) {
+Glyph Text::getFontGlyph(char character) {
     auto codePoint = (unsigned char) character;
     if (codePoint < FIRST_GLYPH_CODE) return SUBSTITUTE_GLYPH;
     auto glyphPtr = GLYPHS + (codePoint - FIRST_GLYPH_CODE) * 3;
@@ -280,7 +280,7 @@ void Text::showString(uint8_t startIndex, const char *string) {
 }
 
 void Text::showCharacter(uint8_t index, char character) {
-    showGlyph(index, getGlyph(character));
+    showGlyph(index, getFontGlyph(character));
 }
 
 static uint16_t indexToOffset(uint8_t index) {
@@ -313,6 +313,39 @@ void Text::showGlyph(uint8_t index, Glyph glyph) {
     segments.writeSegment(254 + offset, byte0 & 1);
     segments.writeSegment(258 + offset, byte0 & 1 << 1);
     segments.writeSegment(255 + offset, byte0 & 1 << 2);
+}
+
+Glyph Text::getGlyph(uint8_t index) {
+    auto offset = indexToOffset(index);
+    uint8_t byte2 = 0;
+    if (segments.readSegment(16 + offset)) byte2 |= 1;
+    if (segments.readSegment(14 + offset)) byte2 |= 1 << 1;
+    if (segments.readSegment(15 + offset)) byte2 |= 1 << 2;
+    if (segments.readSegment(96 + offset)) byte2 |= 1 << 3;
+    if (segments.readSegment(17 + offset)) byte2 |= 1 << 4;
+    if (segments.readSegment(18 + offset)) byte2 |= 1 << 5;
+    if (segments.readSegment(94 + offset)) byte2 |= 1 << 6;
+    if (segments.readSegment(98 + offset)) byte2 |= 1 << 7;
+    uint8_t byte1 = 0;
+    if (segments.readSegment(95 + offset)) byte1 |= 1;
+    if (segments.readSegment(176 + offset)) byte1 |= 1 << 1;
+    if (segments.readSegment(97 + offset)) byte1 |= 1 << 2;
+    if (segments.readSegment(174 + offset)) byte1 |= 1 << 3;
+    if (segments.readSegment(178 + offset)) byte1 |= 1 << 4;
+    if (segments.readSegment(175 + offset)) byte1 |= 1 << 5;
+    if (segments.readSegment(256 + offset)) byte1 |= 1 << 6;
+    if (segments.readSegment(177 + offset)) byte1 |= 1 << 7;
+    uint8_t byte0 = 0;
+    if (segments.readSegment(254 + offset)) byte0 |= 1;
+    if (segments.readSegment(255 + offset)) byte0 |= 1 << 2;
+    if (segments.readSegment(258 + offset)) byte0 |= 1 << 1;
+    return Glyph{{byte0, byte1, byte2}};
+}
+
+void Text::getGlyphs(Glyph *dest) {
+    for (int i = 0; i < SIZE; ++i) {
+        dest[i] = getGlyph(i);
+    }
 }
 
 void Text::dash(bool value) {

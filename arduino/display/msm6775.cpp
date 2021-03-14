@@ -28,6 +28,12 @@ void SegmentDriver::load() {
     loadPin.writePulse();
 }
 
+bool SegmentDisplay::readSegment(uint16_t index) {
+    // reversed for convenience
+    index = SEGMENTS_COUNT - 1 - index;
+    return bitRead(state[index / 8], index % 8);
+}
+
 void SegmentDisplay::writeSegment(uint16_t index, bool value) {
     // reversed for convenience
     index = SEGMENTS_COUNT - 1 - index;

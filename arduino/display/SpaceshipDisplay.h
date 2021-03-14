@@ -94,7 +94,7 @@ public:
         static constexpr uint32_t SUBSTITUTE_GLYPH_DATA = 0b0000000001000000000;
         static const Glyph SUBSTITUTE_GLYPH;
 
-        static Glyph getGlyph(char character);
+        static Glyph getFontGlyph(char character);
 
         void clear() override;
 
@@ -103,6 +103,10 @@ public:
         void showCharacter(uint8_t index, char character);
 
         void showGlyph(uint8_t index, const Glyph glyph);
+
+        Glyph getGlyph(uint8_t index);
+
+        void getGlyphs(Glyph *dest);
 
         void dash(bool value);
 

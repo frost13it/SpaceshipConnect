@@ -73,7 +73,7 @@ void loop() {
                 return;
         }
     } else if (charInput) {
-        glyphs[cursorPosition] = SpaceshipDisplay::Text::getGlyph(command);
+        glyphs[cursorPosition] = SpaceshipDisplay::Text::getFontGlyph(command);
         cursorPosition = (cursorPosition + 1) % SpaceshipDisplay::Text::SIZE;
         return;
     } else if (command >= 'a' && command < 'a' + 19) {
