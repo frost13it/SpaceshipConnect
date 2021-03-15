@@ -3,12 +3,13 @@
 
 using namespace msm6775;
 
-SegmentDisplay segmentDisplay(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-SpaceshipDisplay display(segmentDisplay);
+SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
+SegmentsState segments;
+SpaceshipDisplay display(segments);
 
 void setup() {
     Serial.begin(SERIAL_SPEED);
-    display.update();
+    display.commitState(segmentDriver);
 }
 
 uint8_t serialRead() {
@@ -30,17 +31,17 @@ void loop() {
             display.clock.hour(segmentIndex / 100);
             display.clock.minute(segmentIndex % 100);
         }
-        segmentDisplay.writeSegment(segmentIndex, true);
+        segments.writeSegment(segmentIndex, true);
     }
-    display.update();
+    display.commitState(segmentDriver);
 
     char command = serialRead();
     switch (command) {
         case 'a':
-            segmentIndex = (segmentIndex + SegmentDisplay::SEGMENTS_COUNT - 1) % SegmentDisplay::SEGMENTS_COUNT;
+            segmentIndex = (segmentIndex + SegmentsState::SEGMENTS_COUNT - 1) % SegmentsState::SEGMENTS_COUNT;
             break;
         case 'd':
-            segmentIndex = (segmentIndex + 1) % SegmentDisplay::SEGMENTS_COUNT;
+            segmentIndex = (segmentIndex + 1) % SegmentsState::SEGMENTS_COUNT;
             break;
         case 's':
             allSet = !allSet;

@@ -2,8 +2,9 @@
 #include "../../display/SpaceshipDisplay.h"
 #include "../../environment.h"
 
-msm6775::SegmentDisplay segmentDisplay(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-SpaceshipDisplay display(segmentDisplay);
+msm6775::SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
+msm6775::SegmentsState segments;
+SpaceshipDisplay display(segments);
 
 bool modeFront = false;
 bool modeBottom = false;
@@ -23,12 +24,12 @@ void setup() {
         display.clock.minute(number);
         display.hvac.leftTemp(number, false);
         display.hvac.rightTemp(number, false);
-        display.update();
+        display.commitState(segmentDriver);
         delay(200);
     }
 
     display.clearAll();
-    display.update();
+    display.commitState(segmentDriver);
 }
 
 void loop() {
@@ -41,7 +42,7 @@ void loop() {
     hvac.rightAuto(rightTemp == 20);
     hvac.rightFull(rightTemp == 30);
     hvac.rightTemp(rightTemp, rightTemp <= 40);
-    display.update();
+    display.commitState(segmentDriver);
 
     int command = Serial.read();
     if (command == -1) return;

@@ -1,13 +1,14 @@
 #include "../../display/SpaceshipDisplay.h"
 #include "../../environment.h"
 
-msm6775::SegmentDisplay segmentDisplay(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-SpaceshipDisplay display(segmentDisplay);
+msm6775::SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
+msm6775::SegmentsState segments;
+SpaceshipDisplay display(segments);
 
 void setup() {
     Serial.begin(SERIAL_SPEED);
     display.text.showString(0, "Honda Civic");
-    display.update();
+    display.commitState(segmentDriver);
     delay(2000);
 }
 
@@ -38,7 +39,7 @@ void loop() {
         }
         display.text.showGlyph(i, glyph);
     }
-    display.update();
+    display.commitState(segmentDriver);
     delay(10);
     blinkDelay -= 10;
     if (blinkDelay <= 0) {

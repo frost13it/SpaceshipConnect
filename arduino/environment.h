@@ -1,6 +1,9 @@
 #pragma once
 
-#define SERIAL_SPEED 9600
+#define SERIAL_SPEED 115200
+
+// the pin must support interrupts
+#define DISPLAY_EMULATOR_CE 2
 
 #define DISPLAY_CLOCK 3
 #define DISPLAY_DATA 4

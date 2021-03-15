@@ -43,9 +43,9 @@ struct RtcRamData {
 };
 
 // Peripherals
-
-msm6775::SegmentDisplay segmentDisplay(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-SpaceshipDisplay display(segmentDisplay);
+msm6775::SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
+msm6775::SegmentsState segments;
+SpaceshipDisplay display(segments);
 SpaceshipHvac hvac(HVAC_CLOCK, HVAC_DATA);
 Ds1302 rtc(RTC_CLOCK, RTC_DATA, RTC_CE);
 OneWire oneWire(ONE_WIRE_PIN);
@@ -62,7 +62,7 @@ ConnectorReply reply;
 void setup() {
     display.clock.minute(SpaceshipDisplay::Hvac::TEMP_HI);
     display.text.showString(0, "Honda Civic");
-    display.update();
+    display.commitState(segmentDriver);
 
     auto now = rtc.getDateTime();
     RtcRamData savedData;
@@ -230,7 +230,7 @@ static void updateDisplay() {
         auto value = SpaceshipDisplay::NUM_SPINNER + spinnerFrame;
         display.hvac.leftTemp(value, false);
         display.hvac.rightTemp(value, false);
-        display.update();
+        display.commitState(segmentDriver);
         if (--state.splashTicks == 0) {
             display.clearAll();
         }
@@ -306,7 +306,7 @@ static void updateDisplay() {
     media.dolby(state.spaceship.reversing);
     media.tel(state.phoneConnected);
 
-    display.update();
+    display.commitState(segmentDriver);
 }
 
 static int8_t renderHvacTemp(uint8_t value) {

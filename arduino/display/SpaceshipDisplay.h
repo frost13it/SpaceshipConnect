@@ -15,7 +15,7 @@ class SpaceshipDisplay {
     static constexpr uint8_t DIGIT_O = 16;
     static constexpr uint8_t DIGIT_SPINNER = 17; // + 18, 19
 
-    msm6775::SegmentDisplay &segments;
+    msm6775::SegmentsState &segments;
 
     static void renderTwoDigitNumber(uint8_t *digits, int8_t value);
 
@@ -26,7 +26,7 @@ public:
     static constexpr int8_t NUM_SPINNER = -105;
     static constexpr uint8_t NUM_SPINNER_FRAMES = 3;
 
-    void update();
+    void commitState(msm6775::SegmentDriver &driver);
 
     void clearAll();
 
@@ -47,9 +47,9 @@ public:
 
     protected:
 
-        msm6775::SegmentDisplay &segments;
+        msm6775::SegmentsState &segments;
 
-        explicit Section(msm6775::SegmentDisplay &segments) : segments(segments) {};
+        explicit Section(msm6775::SegmentsState &segments) : segments(segments) {};
 
     public:
 
@@ -62,7 +62,7 @@ public:
 
         friend class SpaceshipDisplay;
 
-        explicit Clock(msm6775::SegmentDisplay &segments) : Section(segments) {}
+        explicit Clock(msm6775::SegmentsState &segments) : Section(segments) {}
 
         void writeFirstDigit(uint8_t value);
 
@@ -86,7 +86,7 @@ public:
 
         friend class SpaceshipDisplay;
 
-        explicit Text(msm6775::SegmentDisplay &segments) : Section(segments) {}
+        explicit Text(msm6775::SegmentsState &segments) : Section(segments) {}
 
     public:
 
@@ -121,7 +121,7 @@ public:
 
         friend class SpaceshipDisplay;
 
-        explicit Hvac(msm6775::SegmentDisplay &segments) : Section(segments) {}
+        explicit Hvac(msm6775::SegmentsState &segments) : Section(segments) {}
 
         void writeTemp(uint8_t offset, bool frame, int8_t value);
 
@@ -163,7 +163,7 @@ public:
 
         friend class SpaceshipDisplay;
 
-        explicit Media(msm6775::SegmentDisplay &segments) : Section(segments) {}
+        explicit Media(msm6775::SegmentsState &segments) : Section(segments) {}
 
     public:
 
@@ -212,7 +212,7 @@ public:
     Hvac hvac;
     Media media;
 
-    explicit SpaceshipDisplay(msm6775::SegmentDisplay &display) : segments(display),
+    explicit SpaceshipDisplay(msm6775::SegmentsState &segments) : segments(segments),
                                                                   clock(segments),
                                                                   text(segments),
                                                                   hvac(segments),

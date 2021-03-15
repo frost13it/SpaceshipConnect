@@ -32,8 +32,8 @@ const uint8_t SpaceshipDisplay::DIGITS[] = {
         0b0100010, // 19, spinner frame 3
 };
 
-void SpaceshipDisplay::update() {
-    segments.commitState();
+void SpaceshipDisplay::commitState(msm6775::SegmentDriver &driver) {
+    segments.commit(driver);
 }
 
 void SpaceshipDisplay::clearAll() {
