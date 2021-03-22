@@ -1,6 +1,6 @@
 # SpaceshipConnect, Arduino part
 
-Connects to radio & climate display and HVAC system of Honda Civic VIII 5D.
+Connects to audio system, HVAC system and combined display of Honda Civic VIII 5D.
 
 ![display segments](doc/display_all_segments.png)
 

@@ -9,6 +9,7 @@
 #include "connector/SpaceshipState.h"
 #include "display/SpaceshipDisplay.h"
 #include "hvac/SpaceshipHvac.h"
+#include "audio/SpaceshipAudio.h"
 #include "clock/DateTime.h"
 #include "clock/ds1302.h"
 #include "util/CriticalSection.h"
@@ -44,8 +45,8 @@ struct RtcRamData {
 
 // Peripherals
 msm6775::SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-msm6775::SegmentsState segments;
-SpaceshipDisplay display(segments);
+SpaceshipDisplay display;
+SpaceshipAudio audio(DISPLAY_EMULATOR_CE);
 SpaceshipHvac hvac(HVAC_CLOCK, HVAC_DATA);
 Ds1302 rtc(RTC_CLOCK, RTC_DATA, RTC_CE);
 OneWire oneWire(ONE_WIRE_PIN);
@@ -99,7 +100,7 @@ void setup() {
 }
 
 void loop() {
-    auto startTime = millis();
+    auto startTime = micros();
 
     const auto dateTime = rtc.getDateTime();
     rtc.writeRam(&dateTime, sizeof dateTime);
@@ -116,9 +117,9 @@ void loop() {
     state.usbFrameCounter = getUsbFrameCounter();
     state.tick++;
 
-    auto loopTime = millis() - startTime;
-    if (loopTime < LOOP_PERIOD_MS) {
-        delay(LOOP_PERIOD_MS - loopTime);
+    auto loopTime = micros() - startTime;
+    if (loopTime < LOOP_PERIOD_MS * 1000) {
+        delayMicroseconds(LOOP_PERIOD_MS * 1000 - loopTime);
     }
 }
 
@@ -135,6 +136,8 @@ static void refreshSpaceshipState() {
     if (!hvac.readState(spaceship.hvac)) {
         spaceship.hvac.connected = false;
     }
+    audio.refreshState();
+    // todo: get audio mode
     if (tempSensorAddress[0]) {
         if (state.tick % 10 == 0) {
             auto temp = (int8_t) dsTemp.getTempC(tempSensorAddress);
@@ -237,19 +240,26 @@ static void updateDisplay() {
         return;
     }
 
+    if (audio.isSwitchedOn()) {
+        display.segments.writeFrom(audio.getDisplay().segments);
+    } else {
+        display.clearAll();
+    }
+
     auto dateTime = state.dateTime;
     if (dateTime.isValid() && dateTime.date.year > 20) {
         clock.hour(dateTime.time.hour);
         clock.minute(dateTime.time.minute);
 
-        char buf[12];
-        dateTime.date.format(buf, settings.dateFormat, *settings.dateLocale);
-        if (settings.dateCaps) toUpperCp1251(buf);
-        text.showString(0, buf);
+        if (!audio.isSwitchedOn()) {
+            char buf[12];
+            dateTime.date.format(buf, settings.dateFormat, *settings.dateLocale);
+            if (settings.dateCaps) toUpperCp1251(buf);
+            text.showString(0, buf);
+        }
     } else {
         clock.hour(SpaceshipDisplay::NUM_DASH);
         clock.minute(SpaceshipDisplay::NUM_DASH);
-        text.clear();
     }
     display.clock.colon(true);
 
@@ -329,4 +339,9 @@ static void toUpperCp1251(char *str) {
         if (ch >= 0xe0) ch -= 0x20;
         *str++ = (char) ch;
     }
+}
+
+// SPI interrupt routine
+ISR (SPI_STC_vect) {
+    audio.onSpiTransferFinished();
 }

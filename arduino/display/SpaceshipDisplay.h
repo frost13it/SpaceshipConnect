@@ -15,8 +15,6 @@ class SpaceshipDisplay {
     static constexpr uint8_t DIGIT_O = 16;
     static constexpr uint8_t DIGIT_SPINNER = 17; // + 18, 19
 
-    msm6775::SegmentsState &segments;
-
     static void renderTwoDigitNumber(uint8_t *digits, int8_t value);
 
 public:
@@ -25,6 +23,8 @@ public:
     static constexpr int8_t NUM_DASH = -102;
     static constexpr int8_t NUM_SPINNER = -105;
     static constexpr uint8_t NUM_SPINNER_FRAMES = 3;
+
+    msm6775::SegmentsState segments;
 
     void commitState(msm6775::SegmentDriver &driver);
 
@@ -104,9 +104,9 @@ public:
 
         void showGlyph(uint8_t index, const Glyph glyph);
 
-        Glyph getGlyph(uint8_t index);
+        Glyph getGlyph(uint8_t index) const;
 
-        void getGlyphs(Glyph *dest);
+        void getGlyphs(Glyph *dest) const;
 
         void dash(bool value);
 
@@ -212,10 +212,10 @@ public:
     Hvac hvac;
     Media media;
 
-    explicit SpaceshipDisplay(msm6775::SegmentsState &segments) : segments(segments),
-                                                                  clock(segments),
-                                                                  text(segments),
-                                                                  hvac(segments),
-                                                                  media(segments) {}
+    explicit SpaceshipDisplay() :
+            clock(segments),
+            text(segments),
+            hvac(segments),
+            media(segments) {}
 
 };

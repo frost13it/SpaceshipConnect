@@ -4,8 +4,7 @@
 using namespace msm6775;
 
 SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-SegmentsState segments;
-SpaceshipDisplay display(segments);
+SpaceshipDisplay display;
 
 void setup() {
     Serial.begin(SERIAL_SPEED);
@@ -31,7 +30,7 @@ void loop() {
             display.clock.hour(segmentIndex / 100);
             display.clock.minute(segmentIndex % 100);
         }
-        segments.writeSegment(segmentIndex, true);
+        display.segments.writeSegment(segmentIndex, true);
     }
     display.commitState(segmentDriver);
 

@@ -28,6 +28,7 @@ set(Spaceship_HDRS
         display/SpaceshipDisplay.h
         display/msm6775.h
         hvac/SpaceshipHvac.h
+        audio/SpaceshipAudio.h
         clock/DateTime.h
         clock/ds1302.h
         util/Pin.h
@@ -44,6 +45,7 @@ set(Spaceship_SRCS
         display/section_media.cpp
         display/msm6775.cpp
         hvac/SpaceshipHvac.cpp
+        audio/SpaceshipAudio.cpp
         clock/DateTime.cpp
         clock/ds1302.cpp
         util/Pin.cpp

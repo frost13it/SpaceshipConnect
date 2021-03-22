@@ -315,7 +315,7 @@ void Text::showGlyph(uint8_t index, Glyph glyph) {
     segments.writeSegment(255 + offset, byte0 & 1 << 2);
 }
 
-Glyph Text::getGlyph(uint8_t index) {
+Glyph Text::getGlyph(uint8_t index) const {
     auto offset = indexToOffset(index);
     uint8_t byte2 = 0;
     if (segments.readSegment(16 + offset)) byte2 |= 1;
@@ -342,7 +342,7 @@ Glyph Text::getGlyph(uint8_t index) {
     return Glyph{{byte0, byte1, byte2}};
 }
 
-void Text::getGlyphs(Glyph *dest) {
+void Text::getGlyphs(Glyph *dest) const {
     for (int i = 0; i < SIZE; ++i) {
         dest[i] = getGlyph(i);
     }

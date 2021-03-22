@@ -3,8 +3,7 @@
 #include "../../environment.h"
 
 msm6775::SegmentDriver segmentDriver(DISPLAY_CLOCK, DISPLAY_DATA, DISPLAY_CE);
-msm6775::SegmentsState segments;
-SpaceshipDisplay display(segments);
+SpaceshipDisplay display;
 
 bool modeFront = false;
 bool modeBottom = false;

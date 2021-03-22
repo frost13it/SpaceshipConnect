@@ -3,9 +3,8 @@
 #include "../../util/Pin.h"
 #include "../../display/SpaceshipDisplay.h"
 
-msm6775::SegmentsState segments;
-msm6775::Emulator emulator(segments, DISPLAY_EMULATOR_CE);
-SpaceshipDisplay display(segments);
+SpaceshipDisplay display;
+msm6775::Emulator emulator(display.segments, DISPLAY_EMULATOR_CE);
 SpaceshipDisplay::Glyph glyphs[SpaceshipDisplay::Text::SIZE];
 
 void setup() {
