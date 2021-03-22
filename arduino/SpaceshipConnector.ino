@@ -19,6 +19,7 @@
 // Constant data
 
 const uint16_t LOOP_PERIOD_MS = 50;
+const uint32_t LOOP_PERIOD_US = LOOP_PERIOD_MS * 1000L;
 const uint8_t SPLASH_DURATION_TICKS = 40;
 const uint8_t SPLASH_MIN_BREAK_SEC = 10;
 
@@ -100,7 +101,7 @@ void setup() {
 }
 
 void loop() {
-    auto startTime = micros();
+    auto startTimeUs = micros();
 
     const auto dateTime = rtc.getDateTime();
     rtc.writeRam(&dateTime, sizeof dateTime);
@@ -117,9 +118,14 @@ void loop() {
     state.usbFrameCounter = getUsbFrameCounter();
     state.tick++;
 
-    auto loopTime = micros() - startTime;
-    if (loopTime < LOOP_PERIOD_MS * 1000) {
-        delayMicroseconds(LOOP_PERIOD_MS * 1000 - loopTime);
+    auto loopTimeUs = micros() - startTimeUs;
+    if (loopTimeUs < LOOP_PERIOD_US) {
+        static const uint32_t LOOP_PERIOD_ADJUST_US = 50;
+        auto delayTotal = LOOP_PERIOD_US - loopTimeUs - LOOP_PERIOD_ADJUST_US;
+        uint16_t delayMs = delayTotal / 1000;
+        uint16_t delayUs = delayTotal % 1000;
+        delay(delayMs);
+        delayMicroseconds(delayUs);
     }
 }
 
