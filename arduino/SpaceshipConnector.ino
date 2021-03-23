@@ -118,10 +118,10 @@ void loop() {
     state.usbFrameCounter = getUsbFrameCounter();
     state.tick++;
 
-    auto loopTimeUs = micros() - startTimeUs;
+    static const uint32_t LOOP_TIME_ADJUST_US = 50;
+    auto loopTimeUs = micros() - startTimeUs + LOOP_TIME_ADJUST_US;
     if (loopTimeUs < LOOP_PERIOD_US) {
-        static const uint32_t LOOP_PERIOD_ADJUST_US = 50;
-        auto delayTotal = LOOP_PERIOD_US - loopTimeUs - LOOP_PERIOD_ADJUST_US;
+        auto delayTotal = LOOP_PERIOD_US - loopTimeUs;
         uint16_t delayMs = delayTotal / 1000;
         uint16_t delayUs = delayTotal % 1000;
         delay(delayMs);
@@ -307,7 +307,7 @@ static void updateDisplay() {
             case 5:
                 windshield = true;
         }
-        hvac.mode(windshield, front || bottom, front, bottom);
+        hvac.mode(windshield, hvacState.airDirection != 0, front, bottom);
     } else {
         hvac.clear();
     }
