@@ -97,9 +97,7 @@ namespace msm6775 {
             configureHardware(loadPin);
         }
 
-        uint16_t getStateVersion() {
-            return stateVersion;
-        }
+        uint16_t getStateVersion();
 
         void onSpiTransferFinished();
 

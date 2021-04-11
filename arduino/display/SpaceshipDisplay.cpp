@@ -85,7 +85,7 @@ const SpaceshipDisplay::Glyph SpaceshipDisplay::Glyph::from(uint32_t data) {
 }
 
 uint32_t SpaceshipDisplay::Glyph::toUint32() const {
-    return (data[0] << 16) | (data[1] << 8) | data[2];
+    return ((uint32_t) data[0] << 16) | ((data[1] << 8) | data[2]);
 }
 
 const SpaceshipDisplay::Glyph SpaceshipDisplay::Glyph::BLANK = from(0);

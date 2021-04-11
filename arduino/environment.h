@@ -2,7 +2,7 @@
 
 #define SERIAL_SPEED 115200
 
-// the pin must support interrupts
+// the pin must support external interrupts
 #define DISPLAY_EMULATOR_CE 2
 
 #define DISPLAY_CLOCK 3

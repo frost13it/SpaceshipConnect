@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "msm6775.h"
+#include "../util/CriticalSection.h"
 
 using namespace msm6775;
 
@@ -62,6 +63,12 @@ void SegmentsState::commit(SegmentDriver &driver) {
 
 Emulator *Emulator::instance = nullptr;
 
+uint16_t Emulator::getStateVersion() {
+    // for atomic read of 2 bytes
+    CriticalSection cs;
+    return stateVersion;
+}
+
 void Emulator::configureHardware(uint8_t loadInterruptPin) {
     auto interrupt = digitalPinToInterrupt(loadInterruptPin);
     if (interrupt == NOT_AN_INTERRUPT) {
@@ -70,14 +77,14 @@ void Emulator::configureHardware(uint8_t loadInterruptPin) {
     pinMode(loadInterruptPin, INPUT);
     attachInterrupt(interrupt, onLoad_ISR, RISING);
 
-    // turn on SPI
-    SPCR |= bit(SPE);
     // disable master
-    SPCR &= ~bit(MSTR);
+    bitClear(SPCR, MSTR);
     // turn on interrupts
-    SPCR |= bit(SPIE);
+    bitSet(SPCR, SPIE);
     // set LSB first
-    SPCR |= bit(DORD);
+    bitSet(SPCR, DORD);
+    // turn on SPI
+    bitSet(SPCR, SPE);
 }
 
 void Emulator::onLoad_ISR() {
@@ -91,26 +98,34 @@ static void copyVolatile(volatile uint8_t *dest, const volatile uint8_t *src, in
 }
 
 void Emulator::onLoad() {
-    auto packetStart = packetPosition;
+    if (bitRead(SPSR, SPIF)) {
+        // SPI transfer finish ISR is pending
+        // clear the flag and run it
+        bitClear(SPSR, SPIF);
+        onSpiTransferFinished();
+    }
+
+    auto startOffset = packetPosition;
     packetPosition = 0;
-    if (packetStart != 0) {
-        // partially written state (out of sync?)
-        return;
-    }
 
-    auto mask = packet[PACKET_SIZE - 1] >> 3 & ALL_BLOCKS_MASK;
-    if (mask == 0) {
-        // unexpected value, bad input
-        return;
-    }
-
+    uint8_t lastIndex = (startOffset ? startOffset : PACKET_SIZE) - 1;
+    uint8_t mask = packet[lastIndex] >> 3 & ALL_BLOCKS_MASK;
     uint8_t blockIndex = 0;
-    // assumes mask has exactly one bit set
-    while (mask >>= 1) {
+    while (mask) {
+        if (mask & 1) {
+            auto blockOffset = blockIndex * BLOCK_STATE_SIZE;
+            auto block = segments.state + blockOffset;
+            if (startOffset) {
+                auto headLen = PACKET_SIZE - startOffset;
+                copyVolatile(block + headLen, packet, startOffset - 1);
+                copyVolatile(block, packet + startOffset, headLen);
+            } else {
+                copyVolatile(block, packet, BLOCK_STATE_SIZE);
+            }
+        }
         blockIndex++;
+        mask >>= 1;
     }
-    uint8_t blockOffset = blockIndex * BLOCK_STATE_SIZE;
-    copyVolatile(segments.state + blockOffset, packet, BLOCK_STATE_SIZE);
     stateVersion++;
 }
 

@@ -6,7 +6,7 @@
 
 class Connection {
 
-    static Serial_ &port;
+    static Stream &stream;
 
 public:
 
