@@ -22,6 +22,7 @@ const uint16_t LOOP_PERIOD_MS = 50;
 const uint32_t LOOP_PERIOD_US = LOOP_PERIOD_MS * 1000L;
 const uint8_t SPLASH_DURATION_TICKS = 40;
 const uint8_t SPLASH_MIN_BREAK_SEC = 10;
+const uint16_t TEMP_SENSOR_TIMEOUT_TICKS = 200;
 
 // System state
 
@@ -30,6 +31,7 @@ struct {
     SpaceshipState spaceship;
     uint8_t tick = 0;
     uint8_t splashTicks = SPLASH_DURATION_TICKS;
+    uint16_t tempSensorUnavailableTicks = TEMP_SENSOR_TIMEOUT_TICKS + 1;
     bool phoneConnected = false;
     uint16_t usbFrameCounter = 0;
     bool usbFail = false;
@@ -52,7 +54,7 @@ SpaceshipHvac hvac(HVAC_CLOCK, HVAC_DATA);
 Ds1302 rtc(RTC_CLOCK, RTC_DATA, RTC_CE);
 OneWire oneWire(ONE_WIRE_PIN);
 DallasTemperature dsTemp(&oneWire);
-DeviceAddress tempSensorAddress;
+DeviceAddress tempSensorAddress = TEMP_SENSOR_ADDRESS;
 Pin reversingSensor(REVERSING_PIN);
 
 // Connection
@@ -84,13 +86,8 @@ void setup() {
         }
     }
 
-    oneWire.target_search(DS18B20MODEL);
     dsTemp.setWaitForConversion(false);
-    if (dsTemp.getAddress(tempSensorAddress, settings.tempSensorIndex)) {
-        dsTemp.requestTemperaturesByAddress(tempSensorAddress);
-    } else {
-        memset(tempSensorAddress, 0, sizeof tempSensorAddress);
-    }
+    dsTemp.setCheckForConversion(false);
 
     reversingSensor.doInput(true);
     Serial.begin(SERIAL_SPEED);
@@ -143,25 +140,19 @@ static void refreshSpaceshipState() {
         spaceship.hvac.connected = false;
     }
     audio.refreshState();
-    // todo: get audio mode
-    if (tempSensorAddress[0]) {
-        if (state.tick % 10 == 0) {
-            auto temp = (int8_t) dsTemp.getTempC(tempSensorAddress);
-            switch (temp) {
-                case DEVICE_DISCONNECTED_C:
-                    spaceship.temp = SpaceshipDisplay::NUM_DASH;
-                    break;
-                case 85:
-                    spaceship.temp = (state.tick > 750 / LOOP_PERIOD_MS) ? temp : SpaceshipDisplay::NUM_DASH;
-                    break;
-                default:
-                    spaceship.temp = temp;
-            }
-        } else if (state.tick % 10 == 1) {
-            dsTemp.requestTemperatures();
-        }
+    auto temp = (int8_t) dsTemp.getTempC(tempSensorAddress);
+    if (temp != DEVICE_DISCONNECTED_C) {
+        spaceship.temp = temp;
+        state.tempSensorUnavailableTicks = 0;
     } else {
-        spaceship.temp = SpaceshipDisplay::NUM_BLANK;
+        auto unavailableTime = state.tempSensorUnavailableTicks;
+        if (unavailableTime == TEMP_SENSOR_TIMEOUT_TICKS) {
+            spaceship.temp = SpaceshipDisplay::NUM_DASH;
+        } else if (unavailableTime > TEMP_SENSOR_TIMEOUT_TICKS) {
+            spaceship.temp = SpaceshipDisplay::NUM_BLANK;
+        } else {
+            state.tempSensorUnavailableTicks++;
+        }
     }
     spaceship.reversing = !reversingSensor.read();
 }

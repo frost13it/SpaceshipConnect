@@ -17,5 +17,6 @@
 #define RTC_CE A3
 
 #define ONE_WIRE_PIN 6
+#define TEMP_SENSOR_ADDRESS {0x28, 0x3E, 0x2C, 0x3A, 0x26, 0x20, 0x01, 0xB0}
 
 #define REVERSING_PIN A0
