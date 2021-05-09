@@ -4,14 +4,14 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#include "audio/SpaceshipAudio.h"
+#include "clock/DateTime.h"
+#include "clock/ds1302.h"
 #include "connector/Connection.h"
 #include "connector/Settings.h"
 #include "connector/SpaceshipState.h"
 #include "display/SpaceshipDisplay.h"
 #include "hvac/SpaceshipHvac.h"
-#include "audio/SpaceshipAudio.h"
-#include "clock/DateTime.h"
-#include "clock/ds1302.h"
 #include "util/CriticalSection.h"
 #include "util/TimedSection.h"
 #include "environment.h"
@@ -22,6 +22,8 @@ const uint16_t LOOP_PERIOD_MS = 50;
 const uint32_t LOOP_PERIOD_US = LOOP_PERIOD_MS * 1000L;
 const uint8_t SPLASH_DURATION_TICKS = 40;
 const uint8_t SPLASH_MIN_BREAK_SEC = 10;
+const uint8_t SPLASH_SPINNER_FRAME_PERIOD = 4;
+const uint8_t CLOCK_BLINK_PERIOD_TICKS = 20;
 const uint16_t TEMP_SENSOR_TIMEOUT_TICKS = 200;
 
 // System state
@@ -29,7 +31,7 @@ const uint16_t TEMP_SENSOR_TIMEOUT_TICKS = 200;
 struct {
     DateTime dateTime;
     SpaceshipState spaceship;
-    uint8_t tick = 0;
+    uint16_t tick = 0;
     uint8_t splashTicks = SPLASH_DURATION_TICKS;
     uint16_t tempSensorUnavailableTicks = TEMP_SENSOR_TIMEOUT_TICKS + 1;
     bool phoneConnected = false;
@@ -226,10 +228,10 @@ static void updateDisplay() {
     auto media = display.media;
 
     if (state.splashTicks > 0) {
-        auto spinnerFrame = (state.tick / 4) % SpaceshipDisplay::NUM_SPINNER_FRAMES;
+        auto spinnerFrame = (state.tick / SPLASH_SPINNER_FRAME_PERIOD) % SpaceshipDisplay::NUM_SPINNER_FRAMES;
         auto value = SpaceshipDisplay::NUM_SPINNER + spinnerFrame;
-        display.hvac.leftTemp(value, false);
-        display.hvac.rightTemp(value, false);
+        hvac.leftTemp(value, false);
+        hvac.rightTemp(value, false);
         display.commitState(segmentDriver);
         if (--state.splashTicks == 0) {
             display.clearAll();
@@ -247,6 +249,7 @@ static void updateDisplay() {
     if (dateTime.isValid() && dateTime.date.year > 20) {
         clock.hour(dateTime.time.hour);
         clock.minute(dateTime.time.minute);
+        clock.colon(state.tick % CLOCK_BLINK_PERIOD_TICKS < CLOCK_BLINK_PERIOD_TICKS / 2);
 
         if (!audio.isSwitchedOn()) {
             char buf[12];
@@ -257,8 +260,8 @@ static void updateDisplay() {
     } else {
         clock.hour(SpaceshipDisplay::NUM_DASH);
         clock.minute(SpaceshipDisplay::NUM_DASH);
+        clock.colon(true);
     }
-    display.clock.colon(true);
 
     auto &hvacState = state.spaceship.hvac;
     if (hvacState.connected) {
