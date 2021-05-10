@@ -15,12 +15,17 @@ register_hardware_platform(${ARDUINO_SDK_PATH}/hardware/arduino/sparkfunavr)
 set(ARDUINO_DEFAULT_BOARD promicro)
 set(ARDUINO_DEFAULT_PORT /dev/ttyACM0)
 
-set(Keyboard_RECURSE True)
 set(HID_RECURSE True)
+set(HID-Project_RECURSE True)
 
 # Library
 
 set(Spaceship_HDRS
+        audio/SpaceshipAudio.h
+        buttons/ButtonSet.h
+        buttons/SpaceshipButtons.h
+        clock/DateTime.h
+        clock/ds1302.h
         connector/Connection.h
         connector/protocol.h
         connector/Settings.h
@@ -28,14 +33,16 @@ set(Spaceship_HDRS
         display/SpaceshipDisplay.h
         display/msm6775.h
         hvac/SpaceshipHvac.h
-        audio/SpaceshipAudio.h
-        clock/DateTime.h
-        clock/ds1302.h
         util/Pin.h
         util/CriticalSection.h
         util/TimedSection.h)
 
 set(Spaceship_SRCS
+        audio/SpaceshipAudio.cpp
+        buttons/ButtonSet.cpp
+        buttons/SpaceshipButtons.cpp
+        clock/DateTime.cpp
+        clock/ds1302.cpp
         connector/Connection.cpp
         connector/Settings.cpp
         display/SpaceshipDisplay.cpp
@@ -45,9 +52,6 @@ set(Spaceship_SRCS
         display/section_media.cpp
         display/msm6775.cpp
         hvac/SpaceshipHvac.cpp
-        audio/SpaceshipAudio.cpp
-        clock/DateTime.cpp
-        clock/ds1302.cpp
         util/Pin.cpp
         util/CriticalSection.cpp
         util/TimedSection.cpp)

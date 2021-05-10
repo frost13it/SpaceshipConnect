@@ -1,10 +1,10 @@
 #include <Arduino.h>
-#include <HID.h>
-#include <Keyboard.h>
+#include <HID-Project.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
 #include "audio/SpaceshipAudio.h"
+#include "buttons/SpaceshipButtons.h"
 #include "clock/DateTime.h"
 #include "clock/ds1302.h"
 #include "connector/Connection.h"
@@ -54,6 +54,8 @@ SpaceshipDisplay display;
 SpaceshipAudio audio(DISPLAY_EMULATOR_CE);
 SpaceshipHvac hvac(HVAC_CLOCK, HVAC_DATA);
 Ds1302 rtc(RTC_CLOCK, RTC_DATA, RTC_CE);
+ButtonSet audioButtons = SpaceshipButtons::audioSwitchSlave(AUDIO_SW_PIN);
+ButtonSet hftButtons = SpaceshipButtons::hft(HFT_SW_PIN);
 OneWire oneWire(ONE_WIRE_PIN);
 DallasTemperature dsTemp(&oneWire);
 DeviceAddress tempSensorAddress = TEMP_SENSOR_ADDRESS;
@@ -93,8 +95,7 @@ void setup() {
 
     reversingSensor.doInput(true);
     Serial.begin(SERIAL_SPEED);
-    Keyboard.begin();
-    HID().begin();
+    Consumer.begin();
 
     refreshSpaceshipState();
 }
@@ -156,6 +157,8 @@ static void refreshSpaceshipState() {
             state.tempSensorUnavailableTicks++;
         }
     }
+    spaceship.audioButton = audioButtons.getPressedButton();
+    spaceship.hftButton = hftButtons.getPressedButton();
     spaceship.reversing = !reversingSensor.read();
 }
 
@@ -167,7 +170,22 @@ static bool emitEvents(SpaceshipState &prevState) {
         reply.data[0] = curState.reversing;
         if (!connection.writeReply(reply)) return false;
     }
+    if (curState.audioButton != prevState.audioButton) {
+        setKeyPressed(MEDIA_NEXT, curState.audioButton == SpaceshipButtons::AUDIO_CH_PLUS);
+        setKeyPressed(MEDIA_PREVIOUS, curState.audioButton == SpaceshipButtons::AUDIO_CH_MINUS);
+    }
+    if (curState.hftButton != prevState.hftButton) {
+        setKeyPressed(MEDIA_PLAY_PAUSE, curState.hftButton == SpaceshipButtons::HFT_TALK);
+    }
     return true;
+}
+
+static void setKeyPressed(ConsumerKeycode key, bool value) {
+    if (value) {
+        Consumer.press(key);
+    } else {
+        Consumer.release(key);
+    }
 }
 
 static bool processInputCommand() {
