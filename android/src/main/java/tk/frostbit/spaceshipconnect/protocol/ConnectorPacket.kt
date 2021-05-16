@@ -4,6 +4,12 @@ sealed class ConnectorPacket {
 
     abstract val data: ByteArray
 
+    companion object {
+
+        const val MAX_DATA_SIZE = 64 - 2;
+
+    }
+
 }
 
 class ConnectorRequest(

@@ -279,6 +279,16 @@ void Text::showString(uint8_t startIndex, const char *string) {
     }
 }
 
+void Text::showString(uint8_t startIndex, const __FlashStringHelper *string) {
+    const uint8_t *str = reinterpret_cast<const uint8_t *>(string);
+    auto index = startIndex;
+    while (index < SIZE) {
+        auto nextChar = pgm_read_byte(str++);
+        if (!nextChar) break;
+        showCharacter(index++, nextChar);
+    }
+}
+
 void Text::showCharacter(uint8_t index, char character) {
     showGlyph(index, getFontGlyph(character));
 }

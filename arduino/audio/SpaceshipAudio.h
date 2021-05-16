@@ -8,6 +8,7 @@ class SpaceshipAudio {
     msm6775::Emulator displayEmulator;
 
     bool _isSwitchedOn = false;
+    bool _isAuxDisplayed = false;
 
 public:
 
@@ -22,6 +23,8 @@ public:
     void refreshState();
 
     bool isSwitchedOn();
+
+    bool isAuxModeDisplayed();
 
 };
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "msm6775.h"
-#include "avr/pgmspace.h"
+#include "WString.h"
 
 class SpaceshipDisplay {
 
@@ -99,6 +99,8 @@ public:
         void clear() override;
 
         void showString(uint8_t startIndex, const char *string);
+
+        void showString(uint8_t startIndex, const __FlashStringHelper *string);
 
         void showCharacter(uint8_t index, char character);
 

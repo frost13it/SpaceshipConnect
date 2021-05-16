@@ -50,7 +50,13 @@ sealed class ConnectorCommand<T>(
                 )
             }
         }
+        override fun parseResult(replyData: ByteArray) = Unit
+    }
 
+    data class SetAudioTitle(val title: String): ConnectorCommand<Unit>(ConnectorCommandCode.SET_AUDIO_TITLE) {
+        override fun serializeData(): ByteArray {
+            return title.toByteArray(ConnectorConstants.CHARSET)
+        }
         override fun parseResult(replyData: ByteArray) = Unit
     }
 

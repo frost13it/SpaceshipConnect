@@ -4,20 +4,24 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.content.pm.ServiceInfo
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.media.AudioAttributes
+import android.media.MediaMetadata
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
 import android.os.IBinder
 import android.os.LocaleList
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import tk.frostbit.spaceshipconnect.protocol.ConnectorCommand
+import tk.frostbit.spaceshipconnect.protocol.ConnectorConstants
 import tk.frostbit.spaceshipconnect.protocol.ConnectorSettings
 import java.time.LocalDateTime
 import java.util.*
@@ -26,6 +30,7 @@ import kotlin.coroutines.CoroutineContext
 class SpaceshipConnectionService : Service() {
 
     private val notificationManager by lazy { getSystemService<NotificationManager>()!! }
+    private val mediaSessionManager by lazy { getSystemService<MediaSessionManager>()!! }
     private val notificationChannel by lazy { getMainNotificationChannel() }
     private val coroutineScope = CoroutineScope(
         SupervisorJob() +
@@ -34,6 +39,7 @@ class SpaceshipConnectionService : Service() {
     )
 
     private val detachReceiver = DetachReceiver()
+    private val mediaSessionListener = MediaSessionListener()
 
     private lateinit var device: UsbDevice
     private var connection: SpaceshipConnection? = null
@@ -58,6 +64,7 @@ class SpaceshipConnectionService : Service() {
                 launch { connection.loop() }
                 connection.validate()
                 afterConnect(connection)
+                launch { audioTitleUpdateLoop() }
             }
 
             notificationManager.notify(NOTIFICATION_ID, buildNotification("Connected"))
@@ -65,6 +72,10 @@ class SpaceshipConnectionService : Service() {
         }
 
         registerReceiver(detachReceiver, IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED))
+
+        val notificationListenerName = ComponentName.createRelative(this, ".NotificationListenerService")
+        mediaSessionManager.addOnActiveSessionsChangedListener(mediaSessionListener, notificationListenerName)
+        mediaSessionListener.setActiveSessions(mediaSessionManager.getActiveSessions(notificationListenerName))
 
         return START_REDELIVER_INTENT
     }
@@ -93,6 +104,13 @@ class SpaceshipConnectionService : Service() {
         )
         Log.i(TAG, "Applying settings: $settings")
         connection.execCommand(ConnectorCommand.SetSettings(settings))
+    }
+
+    private suspend fun audioTitleUpdateLoop() {
+        mediaSessionListener.currentTitle.collect { title ->
+            Log.i(TAG, "Updating audio title: $title")
+            connection?.execCommand(ConnectorCommand.SetAudioTitle(title.toUpperCase(Locale.ROOT)))
+        }
     }
 
     private fun handleException(context: CoroutineContext, throwable: Throwable) {
@@ -124,6 +142,7 @@ class SpaceshipConnectionService : Service() {
 
         Log.i(TAG, "Connection is closed ($message)")
         unregisterReceiver(detachReceiver)
+        mediaSessionManager.removeOnActiveSessionsChangedListener(mediaSessionListener)
         coroutineScope.cancel(message)
         GlobalScope.launch {
             connection?.close()
@@ -146,6 +165,80 @@ class SpaceshipConnectionService : Service() {
                 close("device detached")
             }
         }
+    }
+
+    private class MediaSessionListener : MediaSessionManager.OnActiveSessionsChangedListener {
+
+        private val controllerCallback = ControllerCallback()
+        private val controllers = MutableStateFlow(emptyList<MediaController>())
+        private val updates = MutableStateFlow(UpdateCookie())
+        val currentTitle: Flow<String> = controllers.combine(updates) { controllers, _ -> controllers }
+            .map { findPlayingTrack(it).orEmpty() }
+            .distinctUntilChanged()
+
+        fun setActiveSessions(controllers: List<MediaController>) {
+            for (controller in controllers) {
+                controller.registerCallback(controllerCallback)
+            }
+            this.controllers.value = controllers
+        }
+
+        override fun onActiveSessionsChanged(controllers: List<MediaController>?) {
+            Log.d(TAG, "Media sessions updated: $controllers")
+            setActiveSessions(controllers.orEmpty())
+        }
+
+        private fun findPlayingTrack(controllers: List<MediaController>): String? {
+            return controllers
+                .filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                .filter { it.playbackInfo?.audioAttributes?.usage == AudioAttributes.USAGE_MEDIA }
+                .firstOrNull()
+                ?.metadata
+                ?.let { getTrackTitle(it) }
+        }
+
+        private fun getTrackTitle(metadata: MediaMetadata): String? {
+            val title = (metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: return null)
+                .substringBefore('(')
+                .substringBefore('[')
+                .substringBefore(" feat.")
+                .substringBefore(" ft.")
+                .trim()
+            val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                ?.takeUnless { it == "Unknown artist" }
+            val summary = if (artist != null) {
+                "$title - $artist"
+            } else {
+                title
+            }
+            return summary
+                .replace(" - ", "-")
+                .take(ConnectorConstants.TEXT_SECTION_SIZE)
+        }
+
+        private fun update() {
+            updates.value = UpdateCookie()
+        }
+
+        private class UpdateCookie
+
+        private inner class ControllerCallback : MediaController.Callback() {
+            override fun onPlaybackStateChanged(state: PlaybackState?) {
+                Log.i(TAG, "Playback state changed")
+                update()
+            }
+
+            override fun onMetadataChanged(metadata: MediaMetadata?) {
+                Log.i(TAG, "Metadata changed")
+                update()
+            }
+
+            override fun onAudioInfoChanged(info: MediaController.PlaybackInfo?) {
+                Log.i(TAG, "Audio info changed")
+                update()
+            }
+        }
+
     }
 
     companion object {

@@ -20,6 +20,6 @@ evaluationDependsOnChildren()
 
 subprojects {
     dependencies {
-        implementation platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.4.2")
+        implementation platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.5.0")
     }
 }

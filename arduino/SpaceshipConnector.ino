@@ -36,7 +36,7 @@ struct {
     uint16_t tempSensorUnavailableTicks = TEMP_SENSOR_TIMEOUT_TICKS + 1;
     bool phoneConnected = false;
     uint16_t usbFrameCounter = 0;
-    bool usbFail = false;
+    char audioTitle[SpaceshipDisplay::Text::SIZE + 1] = {'\0'};
 } state;
 
 // Settings
@@ -69,7 +69,7 @@ ConnectorReply reply;
 
 void setup() {
     display.clock.minute(SpaceshipDisplay::Hvac::TEMP_HI);
-    display.text.showString(0, "Honda Civic");
+    display.text.showString(0, F("Honda Civic"));
     display.commitState(segmentDriver);
 
     auto now = rtc.getDateTime();
@@ -109,9 +109,12 @@ void loop() {
 
     SpaceshipState prevState = state.spaceship;
     refreshSpaceshipState();
+    updateVirtualKeyboard(prevState);
     if (state.phoneConnected = isUsbConnected()) {
-        auto success = processInputCommand() && emitEvents(prevState);
-        state.usbFail |= !success;
+        processInputCommand();
+        emitEvents(prevState);
+    } else {
+        *state.audioTitle = '\0';
     }
     updateDisplay();
 
@@ -179,6 +182,11 @@ static bool emitEvents(SpaceshipState &prevState) {
         reply.data[0] = curState.reversing;
         if (!connection.writeReply(reply)) return false;
     }
+    return true;
+}
+
+static void updateVirtualKeyboard(SpaceshipState &prevState) {
+    auto curState = state.spaceship;
     if (curState.audioButton != prevState.audioButton) {
         setKeyPressed(MEDIA_NEXT, curState.audioButton == SpaceshipButtons::AUDIO_CH_PLUS);
         setKeyPressed(MEDIA_PREVIOUS, curState.audioButton == SpaceshipButtons::AUDIO_CH_MINUS);
@@ -186,7 +194,6 @@ static bool emitEvents(SpaceshipState &prevState) {
     if (curState.hftButton != prevState.hftButton) {
         setKeyPressed(MEDIA_PLAY_PAUSE, curState.hftButton == SpaceshipButtons::HFT_TALK);
     }
-    return true;
 }
 
 static void setKeyPressed(ConsumerKeycode key, bool value) {
@@ -223,6 +230,17 @@ static bool processInputCommand() {
                     reply.event = ConnectorEvent::COMMAND_RESULT;
                 }
             }
+            break;
+        }
+        case ConnectorCommand::SET_AUDIO_TITLE: {
+            if (request.dataSize <= SpaceshipDisplay::Text::SIZE) {
+                memcpy(state.audioTitle, request.data, request.dataSize);
+                state.audioTitle[request.dataSize] = '\0';
+            } else {
+                memcpy(state.audioTitle, request.data, sizeof state.audioTitle);
+                state.audioTitle[SpaceshipDisplay::Text::SIZE] = '\0';
+            }
+            reply.event = ConnectorEvent::COMMAND_RESULT;
             break;
         }
         case ConnectorCommand::SET_SETTINGS: {
@@ -268,6 +286,14 @@ static void updateDisplay() {
 
     if (audio.isSwitchedOn()) {
         display.segments.writeFrom(audio.getDisplay().segments);
+        if (audio.isAuxModeDisplayed()) {
+            if (*state.audioTitle) {
+                display.text.clear();
+                display.text.showString(0, state.audioTitle);
+            } else {
+                display.text.showString(0, F("AUX/USB"));
+            }
+        }
     } else {
         display.clearAll();
     }

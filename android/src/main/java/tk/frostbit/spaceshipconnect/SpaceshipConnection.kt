@@ -10,18 +10,21 @@ import com.hoho.android.usbserial.driver.UsbSerialPort
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import tk.frostbit.spaceshipconnect.protocol.*
 
 class SpaceshipConnection(private val port: UsbSerialPort) {
 
     @Volatile
     private var pendingResult: CompletableDeferred<ByteArray>? = null
+    private val commandMutex = Mutex()
 
     private val _events = MutableSharedFlow<ConnectorEvent>()
     val events: Flow<ConnectorEvent>
         get() = _events
 
-    suspend fun <T> execCommand(command: ConnectorCommand<T>): T {
+    suspend fun <T> execCommand(command: ConnectorCommand<T>): T = commandMutex.withLock {
         check(pendingResult == null) { "A command already in progress" }
         val resultDeferred = CompletableDeferred<ByteArray>()
         pendingResult = resultDeferred
@@ -84,6 +87,10 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
     }
 
     private fun writeRequest(request: ConnectorRequest) {
+        require(request.data.size <= ConnectorPacket.MAX_DATA_SIZE) {
+            "Packet data size overflow: ${request.data.size}"
+        }
+
         val buffer = ByteArray(request.data.size + 2)
         buffer[0] = request.command.value.toByte()
         buffer[1] = request.data.size.toByte()
