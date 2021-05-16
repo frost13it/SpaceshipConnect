@@ -11,7 +11,6 @@ const Settings Settings::DEFAULT_SETTINGS = {
         dateLocale: &Date::Locale::RUS,
         dateFormat: DATE_FORMATS[1],
         dateCaps: true,
-        tempSensorIndex: 1,
 };
 
 bool SavedSettings::load(Settings &outSettings) const {
@@ -31,6 +30,5 @@ bool SavedSettings::load(Settings &outSettings) const {
         return false;
     }
     outSettings.dateCaps = dateCaps;
-    outSettings.tempSensorIndex = tempSensorIndex;
     return true;
 }

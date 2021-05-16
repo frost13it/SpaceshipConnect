@@ -47,7 +47,6 @@ sealed class ConnectorCommand<T>(
                     dateLocaleIndex.toByte(),
                     dateFormatIndex.toByte(),
                     if (dateCaps) 1 else 0,
-                    tempSensorIndex.toByte(),
                 )
             }
         }

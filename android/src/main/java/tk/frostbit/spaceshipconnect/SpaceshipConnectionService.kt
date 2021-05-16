@@ -90,8 +90,8 @@ class SpaceshipConnectionService : Service() {
                 .let { if (it == -1) 1 else it },
             dateFormatIndex = 1,
             dateCaps = true,
-            tempSensorIndex = 0,
         )
+        Log.i(TAG, "Applying settings: $settings")
         connection.execCommand(ConnectorCommand.SetSettings(settings))
     }
 

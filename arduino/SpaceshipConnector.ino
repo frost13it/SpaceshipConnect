@@ -145,7 +145,16 @@ static void refreshSpaceshipState() {
     audio.refreshState();
     auto temp = (int8_t) dsTemp.getTempC(tempSensorAddress);
     if (temp != DEVICE_DISCONNECTED_C) {
-        spaceship.temp = temp;
+        auto &currentTemp = spaceship.temp;
+        if (currentTemp == SpaceshipDisplay::NUM_BLANK) {
+            currentTemp = temp;
+        } else {
+            if (currentTemp < temp) {
+                currentTemp++;
+            } else if (currentTemp > temp) {
+                currentTemp--;
+            }
+        }
         state.tempSensorUnavailableTicks = 0;
     } else {
         auto unavailableTime = state.tempSensorUnavailableTicks;

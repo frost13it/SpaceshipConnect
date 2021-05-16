@@ -7,6 +7,6 @@ struct SpaceshipState {
     SpaceshipHvac::State hvac;
     uint8_t audioButton;
     uint8_t hftButton;
-    int8_t temp;
+    int8_t temp = SpaceshipDisplay::NUM_BLANK;
     bool reversing;
 };
