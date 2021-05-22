@@ -2,12 +2,10 @@ package tk.frostbit.spaceshipconnect
 
 import android.app.Activity
 import android.content.Intent
-import android.hardware.camera2.CameraManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Bundle
-import android.util.Log
-import androidx.core.content.getSystemService
+import ru.kontur.kinfra.logging.Logger
 
 class UsbListenerActivity : Activity() {
 
@@ -16,14 +14,14 @@ class UsbListenerActivity : Activity() {
 
         val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
         if (device != null) {
-            Log.d(TAG, "Starting service for device: $device")
+            logger.debug { "Starting service for device: $device" }
 
             val serviceIntent = Intent(this, SpaceshipConnectionService::class.java).apply {
                 putExtra(UsbManager.EXTRA_DEVICE, device)
             }
             startForegroundService(serviceIntent)
         } else {
-            Log.e(TAG, "No device supplied in intent")
+            logger.error { "No device supplied in intent" }
         }
 
         finish()
@@ -31,7 +29,7 @@ class UsbListenerActivity : Activity() {
 
     companion object {
 
-        private const val TAG = "UsbActivity"
+        private val logger = Logger.currentClass()
 
     }
 

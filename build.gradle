@@ -5,14 +5,17 @@ plugins {
 
 allprojects {
     repositories {
+        mavenCentral()
         google()
-        jcenter()
         maven {
             url 'https://jitpack.io'
             content {
                 includeModule("com.github.mik3y", "usb-serial-for-android")
+                includeModule("com.github.kinfra", "kinfra-logging")
+                includeModule("com.github.frost13it", "kinfra-logging-logcat")
             }
         }
+        mavenLocal()
     }
 }
 

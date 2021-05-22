@@ -15,11 +15,11 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.IBinder
 import android.os.LocaleList
-import android.util.Log
 import android.widget.Toast
 import androidx.core.content.getSystemService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import ru.kontur.kinfra.logging.Logger
 import tk.frostbit.spaceshipconnect.protocol.ConnectorCommand
 import tk.frostbit.spaceshipconnect.protocol.ConnectorConstants
 import tk.frostbit.spaceshipconnect.protocol.ConnectorSettings
@@ -102,19 +102,19 @@ class SpaceshipConnectionService : Service() {
             dateFormatIndex = 1,
             dateCaps = true,
         )
-        Log.i(TAG, "Applying settings: $settings")
+        logger.info { "Applying settings: $settings" }
         connection.execCommand(ConnectorCommand.SetSettings(settings))
     }
 
     private suspend fun audioTitleUpdateLoop() {
         mediaSessionListener.currentTitle.collect { title ->
-            Log.i(TAG, "Updating audio title: $title")
+            logger.info { "Updating audio title: $title" }
             connection?.execCommand(ConnectorCommand.SetAudioTitle(title.toUpperCase(Locale.ROOT)))
         }
     }
 
     private fun handleException(context: CoroutineContext, throwable: Throwable) {
-        Log.e(TAG, "Connection failure" + context[CoroutineName]?.let { " in $it" }.orEmpty(), throwable)
+        logger.error(throwable) { "Connection failure" + context[CoroutineName]?.let { " in $it" }.orEmpty() }
         Toast.makeText(this@SpaceshipConnectionService, "Spaceship disconnected", Toast.LENGTH_LONG).show()
         close("failure")
     }
@@ -140,7 +140,7 @@ class SpaceshipConnectionService : Service() {
         if (closed) return
         closed = true
 
-        Log.i(TAG, "Connection is closed ($message)")
+        logger.info { "Connection is closed ($message)" }
         unregisterReceiver(detachReceiver)
         mediaSessionManager.removeOnActiveSessionsChangedListener(mediaSessionListener)
         coroutineScope.cancel(message)
@@ -161,7 +161,7 @@ class SpaceshipConnectionService : Service() {
         override fun onReceive(context: Context, intent: Intent) {
             val detachedDevice = intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE) ?: return
             if (detachedDevice.deviceId == device.deviceId) {
-                Log.i(TAG, "Detaching from device ${device.deviceId}")
+                logger.info { "Detaching from device ${device.deviceId}" }
                 close("device detached")
             }
         }
@@ -184,7 +184,7 @@ class SpaceshipConnectionService : Service() {
         }
 
         override fun onActiveSessionsChanged(controllers: List<MediaController>?) {
-            Log.d(TAG, "Media sessions updated: $controllers")
+            logger.debug { "Media sessions updated: $controllers" }
             setActiveSessions(controllers.orEmpty())
         }
 
@@ -224,17 +224,17 @@ class SpaceshipConnectionService : Service() {
 
         private inner class ControllerCallback : MediaController.Callback() {
             override fun onPlaybackStateChanged(state: PlaybackState?) {
-                Log.i(TAG, "Playback state changed")
+                logger.info { "Playback state changed" }
                 update()
             }
 
             override fun onMetadataChanged(metadata: MediaMetadata?) {
-                Log.i(TAG, "Metadata changed")
+                logger.info { "Metadata changed" }
                 update()
             }
 
             override fun onAudioInfoChanged(info: MediaController.PlaybackInfo?) {
-                Log.i(TAG, "Audio info changed")
+                logger.info { "Audio info changed" }
                 update()
             }
         }
@@ -243,7 +243,7 @@ class SpaceshipConnectionService : Service() {
 
     companion object {
 
-        private const val TAG = "UsbConnectionService"
+        private val logger = Logger.currentClass()
         private const val NOTIFICATION_ID = NotificationIds.CONNECTION
         private const val NOTIFICATION_CHANNEL_ID = "connection"
 

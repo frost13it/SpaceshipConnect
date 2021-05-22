@@ -1,21 +1,21 @@
 package tk.frostbit.spaceshipconnect
 
 import android.service.notification.NotificationListenerService
-import android.util.Log
+import ru.kontur.kinfra.logging.Logger
 
 class NotificationListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
-        Log.i(TAG, "Listener connected")
+        logger.info { "Listener connected" }
     }
 
     override fun onListenerDisconnected() {
-        Log.i(TAG, "Listener disconnected")
+        logger.info { "Listener disconnected" }
     }
 
     companion object {
 
-        private const val TAG = "NotificationListenerService"
+        private val logger = Logger.currentClass()
 
     }
 

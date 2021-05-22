@@ -3,7 +3,6 @@ package tk.frostbit.spaceshipconnect
 import android.content.Context
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
-import android.util.Log
 import androidx.core.content.getSystemService
 import com.hoho.android.usbserial.driver.CdcAcmSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialPort
@@ -12,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import ru.kontur.kinfra.logging.Logger
 import tk.frostbit.spaceshipconnect.protocol.*
 
 class SpaceshipConnection(private val port: UsbSerialPort) {
@@ -29,7 +29,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
         val resultDeferred = CompletableDeferred<ByteArray>()
         pendingResult = resultDeferred
         withContext(Dispatchers.IO) {
-            Log.d(TAG, "Sending command $command")
+            logger.debug { "Sending command $command" }
             writeRequest(command.toRequest())
         }
         val result = withTimeoutOrNull(REQUEST_TIMEOUT.toLong()) {
@@ -48,7 +48,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
 
     suspend fun loop() {
         withContext(CoroutineName("SpaceshipConnection Looper") + Dispatchers.IO) {
-            Log.d(TAG, "Listening port")
+            logger.debug { "Listening port" }
             while (coroutineContext.isActive) {
                 val reply = readNextReply()
                 if (reply == null) {
@@ -56,7 +56,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
                     continue
                 }
 
-                Log.d(TAG, "Received reply: $reply")
+                logger.debug { "Received reply: $reply" }
 
                 when (reply.event) {
                     ConnectorEventCode.COMMAND_RESULT -> {
@@ -71,7 +71,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
                     else -> _events.emit(ConnectorEvent.parse(reply))
                 }
             }
-            Log.d(TAG, "Listening finished")
+            logger.debug { "Listening finished" }
         }
     }
 
@@ -80,7 +80,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
             try {
                 port.dtr = false
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to reset DTR")
+                logger.error { "Failed to reset DTR" }
             }
             port.close()
         }
@@ -97,7 +97,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
         request.data.copyInto(buffer, 2)
         port.write(buffer, REQUEST_WRITE_TIMEOUT).also {
             if (it != buffer.size) {
-                Log.e(TAG, "Incomplete write: $it of ${buffer.size} bytes")
+                logger.error { "Incomplete write: $it of ${buffer.size} bytes" }
             }
         }
     }
@@ -106,7 +106,7 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
         val buffer = ByteArray(16_384)
         val readCount = port.read(buffer, REPLY_READ_TIMEOUT).also {
             if (it < PACKET_HEADER_SIZE) {
-                if (it > 0) Log.w(TAG, "Read $it of $PACKET_HEADER_SIZE header bytes")
+                if (it > 0) logger.warn { "Read $it of $PACKET_HEADER_SIZE header bytes" }
                 return null
             }
         }
@@ -114,19 +114,19 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
         val dataSize = buffer[1].toInt()
         val packetSize = PACKET_HEADER_SIZE + dataSize
         val event = ConnectorEventCode.fromValue(type) ?: run {
-            Log.e(TAG, "Unknown event: $type")
+            logger.error { "Unknown event: $type" }
             return null
         }
         val data = buffer.copyOfRange(PACKET_HEADER_SIZE, packetSize)
         if (readCount > packetSize) {
-            Log.w(TAG, "Discarded ${readCount - packetSize} bytes")
+            logger.warn { "Discarded ${readCount - packetSize} bytes" }
         }
         return ConnectorReply(event, data)
     }
 
     companion object {
 
-        private const val TAG = "SpaceshipConnection"
+        private val logger = Logger.currentClass()
 
         private const val PACKET_HEADER_SIZE = 2
         private const val REPLY_READ_TIMEOUT = 150
