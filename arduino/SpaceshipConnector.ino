@@ -232,17 +232,6 @@ static bool processInputCommand() {
             }
             break;
         }
-        case ConnectorCommand::SET_AUDIO_TITLE: {
-            if (request.dataSize <= SpaceshipDisplay::Text::SIZE) {
-                memcpy(state.audioTitle, request.data, request.dataSize);
-                state.audioTitle[request.dataSize] = '\0';
-            } else {
-                memcpy(state.audioTitle, request.data, sizeof state.audioTitle);
-                state.audioTitle[SpaceshipDisplay::Text::SIZE] = '\0';
-            }
-            reply.event = ConnectorEvent::COMMAND_RESULT;
-            break;
-        }
         case ConnectorCommand::SET_SETTINGS: {
             if (request.dataSize == sizeof(SavedSettings)) {
                 SavedSettings *requestedSettings = reinterpret_cast<SavedSettings*>(request.data);
@@ -254,6 +243,17 @@ static bool processInputCommand() {
                     reply.event = ConnectorEvent::COMMAND_RESULT;
                 }
             }
+            break;
+        }
+        case ConnectorCommand::SET_AUDIO_TITLE: {
+            if (request.dataSize <= SpaceshipDisplay::Text::SIZE) {
+                memcpy(state.audioTitle, request.data, request.dataSize);
+                state.audioTitle[request.dataSize] = '\0';
+            } else {
+                memcpy(state.audioTitle, request.data, sizeof state.audioTitle);
+                state.audioTitle[SpaceshipDisplay::Text::SIZE] = '\0';
+            }
+            reply.event = ConnectorEvent::COMMAND_RESULT;
             break;
         }
         case ConnectorCommand::GET_REVERSING: {

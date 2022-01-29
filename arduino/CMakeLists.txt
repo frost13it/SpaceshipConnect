@@ -68,3 +68,4 @@ generate_arduino_firmware(hvac_segments_test SKETCH examples/hvac_segments_test 
 generate_arduino_firmware(text_font_editor SKETCH examples/text_font_editor LIBS Spaceship)
 generate_arduino_firmware(segment_walker SKETCH examples/segment_walker LIBS Spaceship)
 generate_arduino_firmware(display_proxy SKETCH examples/display_proxy LIBS Spaceship)
+generate_arduino_firmware(rtc_test SKETCH examples/rtc_test LIBS Spaceship)

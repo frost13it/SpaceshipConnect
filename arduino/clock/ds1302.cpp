@@ -150,6 +150,10 @@ void Ds1302::setDateTime(DateTime &dateTime, bool clockHalt, bool writeProtect) 
     writeBurst(data, sizeof data, false);
 }
 
+uint8_t Ds1302::getTrickleChargingConfig() {
+    return readRegister(8);
+}
+
 uint8_t Ds1302::readRam(uint8_t offset) {
     if (offset > 30) return 0xEE;
     return readRegister(bit(5) | offset);

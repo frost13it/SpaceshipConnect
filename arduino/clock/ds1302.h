@@ -67,6 +67,8 @@ public:
 
     void setDateTime(DateTime &dateTime, bool clockHalt = false, bool writeProtect = false);
 
+    uint8_t getTrickleChargingConfig();
+
     uint8_t readRam(uint8_t offset);
 
     void readRam(void *dest, uint8_t size);
