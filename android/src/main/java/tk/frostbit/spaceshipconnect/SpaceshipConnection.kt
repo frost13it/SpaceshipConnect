@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import ru.kontur.kinfra.logging.Logger
 import tk.frostbit.spaceshipconnect.protocol.*
+import java.io.IOException
 
 class SpaceshipConnection(private val port: UsbSerialPort) {
 
@@ -46,43 +47,51 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
         }
     }
 
-    suspend fun loop() {
-        withContext(CoroutineName("SpaceshipConnection Looper") + Dispatchers.IO) {
-            logger.debug { "Listening port" }
-            while (coroutineContext.isActive) {
-                val reply = readNextReply()
-                if (reply == null) {
-                    delay(50)
-                    continue
+    suspend fun readLoop() {
+        withContext(CoroutineName("SpaceshipConnection Reader") + Dispatchers.IO) {
+            logger.debug { "Reading started" }
+            try {
+                while (coroutineContext.isActive) {
+                    val reply = readNextReply()
+                    if (reply == null) {
+                        delay(50)
+                        continue
+                    }
+
+                    logger.debug { "Received reply: $reply" }
+
+                    when (reply.event) {
+                        ConnectorEventCode.COMMAND_RESULT -> {
+                            pendingResult?.complete(reply.data)
+                            pendingResult = null
+                        }
+
+                        ConnectorEventCode.INVALID_COMMAND -> {
+                            pendingResult?.completeExceptionally(RuntimeException("Connector rejected the command"))
+                        }
+
+                        else -> _events.emit(ConnectorEvent.parse(reply))
+                    }
                 }
-
-                logger.debug { "Received reply: $reply" }
-
-                when (reply.event) {
-                    ConnectorEventCode.COMMAND_RESULT -> {
-                        pendingResult?.complete(reply.data)
-                        pendingResult = null
-                    }
-
-                    ConnectorEventCode.INVALID_COMMAND -> {
-                        pendingResult?.completeExceptionally(RuntimeException("Connector rejected the command"))
-                    }
-
-                    else -> _events.emit(ConnectorEvent.parse(reply))
+            } finally {
+                logger.debug { "Reading finished" }
+                withContext(NonCancellable) {
+                    close()
                 }
             }
-            logger.debug { "Listening finished" }
         }
     }
 
     suspend fun close() {
         withContext(Dispatchers.IO) {
-            try {
-                port.dtr = false
-            } catch (e: Exception) {
-                logger.error { "Failed to reset DTR" }
+            if (port.isOpen) {
+                try {
+                    port.dtr = false
+                } catch (e: IOException) {
+                    logger.warn { "Failed to reset DTR on close: ${e.message}" }
+                }
+                port.close()
             }
-            port.close()
         }
     }
 
@@ -133,9 +142,9 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
         private const val REQUEST_WRITE_TIMEOUT = 150
         private const val REQUEST_TIMEOUT = 500
 
-        suspend fun open(device: UsbDevice, context: Context): SpaceshipConnection {
-            val manager = context.getSystemService<UsbManager>()!!
-            val deviceConnection = manager.openDevice(device)
+        suspend fun open(device: UsbDevice, usbManager: UsbManager, scope: CoroutineScope): SpaceshipConnection {
+            val deviceConnection = usbManager.openDevice(device)
+                ?: throw IOException("Failed to open USB device")
             val port = CdcAcmSerialDriver(device).ports.single().apply {
                 withContext(Dispatchers.IO) {
                     open(deviceConnection)
@@ -143,7 +152,9 @@ class SpaceshipConnection(private val port: UsbSerialPort) {
                     dtr = true
                 }
             }
-            return SpaceshipConnection(port)
+            return SpaceshipConnection(port).also {
+                scope.launch { it.readLoop() }
+            }
         }
 
     }

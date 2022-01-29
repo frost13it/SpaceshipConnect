@@ -8,7 +8,7 @@ data class ConnectorSettings(
 
     companion object {
 
-        val DATE_LOCALES = listOf("ru", "en")
+        val DATE_LOCALES = listOf("en", "ru")
 
     }
 

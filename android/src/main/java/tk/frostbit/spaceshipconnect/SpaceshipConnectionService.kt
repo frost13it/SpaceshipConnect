@@ -25,18 +25,14 @@ import tk.frostbit.spaceshipconnect.protocol.ConnectorConstants
 import tk.frostbit.spaceshipconnect.protocol.ConnectorSettings
 import java.time.LocalDateTime
 import java.util.*
-import kotlin.coroutines.CoroutineContext
 
 class SpaceshipConnectionService : Service() {
 
     private val notificationManager by lazy { getSystemService<NotificationManager>()!! }
     private val mediaSessionManager by lazy { getSystemService<MediaSessionManager>()!! }
+    private val usbManager by lazy { getSystemService<UsbManager>()!! }
     private val notificationChannel by lazy { getMainNotificationChannel() }
-    private val coroutineScope = CoroutineScope(
-        SupervisorJob() +
-                Dispatchers.Main +
-                CoroutineExceptionHandler(this::handleException)
-    )
+    private val serviceCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val detachReceiver = DetachReceiver()
     private val mediaSessionListener = MediaSessionListener()
@@ -44,6 +40,7 @@ class SpaceshipConnectionService : Service() {
     private lateinit var device: UsbDevice
     private var connection: SpaceshipConnection? = null
     private var closed = false
+    private var statusToast: Toast? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         device = intent?.getParcelableExtra(UsbManager.EXTRA_DEVICE) ?: run {
@@ -52,23 +49,40 @@ class SpaceshipConnectionService : Service() {
         }
 
         startForeground(
-            NOTIFICATION_ID,
-            buildNotification("Connecting"),
+            STATUS_NOTIFICATION_ID,
+            buildStatusNotification("Connecting"),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
         )
 
-        coroutineScope.launch {
-            openConnection(device)
-
-            connection?.let { connection ->
-                launch { connection.loop() }
-                connection.validate()
-                afterConnect(connection)
-                launch { audioTitleUpdateLoop() }
+        serviceCoroutineScope.launch {
+            var attempt = 1
+            while (true) {
+                logger.info { "Connecting (attempt: $attempt)" }
+                showStatusNotification("Connecting")
+                try {
+                    coroutineScope {
+                        val connectionScope = this
+                        val connection = SpaceshipConnection.open(device, usbManager, connectionScope)
+                        connection.validate()
+                        afterConnect(connection, connectionScope)
+                        logger.info { "Connected" }
+                        showStatusNotification("Connected")
+                        showStatusToast("Spaceship connected")
+                        this@SpaceshipConnectionService.connection = connection
+                        awaitCancellation()
+                    }
+                } catch (e: Exception) {
+                    if (e !is CancellationException && !closed) {
+                        logger.error(e) { "Connection failed" }
+                    }
+                    showStatusNotification("Disconnected")
+                    showStatusToast("Spaceship disconnected")
+                    connection?.close()
+                    connection = null
+                }
+                attempt++
+                delay(500)
             }
-
-            notificationManager.notify(NOTIFICATION_ID, buildNotification("Connected"))
-            Toast.makeText(this@SpaceshipConnectionService, "Spaceship connected", Toast.LENGTH_SHORT).show()
         }
 
         registerReceiver(detachReceiver, IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED))
@@ -80,46 +94,42 @@ class SpaceshipConnectionService : Service() {
         return START_REDELIVER_INTENT
     }
 
-    private suspend fun openConnection(device: UsbDevice) {
-        val connection = SpaceshipConnection.open(device, this)
-        if (closed) {
-            connection.close()
-        } else {
-            this.connection = connection
-        }
-    }
-
-    private suspend fun afterConnect(connection: SpaceshipConnection) {
+    private suspend fun afterConnect(connection: SpaceshipConnection, scope: CoroutineScope) {
         connection.execCommand(ConnectorCommand.SetDateTime(LocalDateTime.now()))
 
         val settings = ConnectorSettings(
             dateLocaleIndex = LocaleList.getDefault()
-                .toLanguageTags().split(",")
-                .indexOfFirst { preferred ->
-                    ConnectorSettings.DATE_LOCALES.any { preferred.startsWith(it) }
-                }
-                .let { if (it == -1) 1 else it },
+                .toLanguageTags()
+                .split(",")
+                .map { Locale.forLanguageTag(it).language }
+                .map { ConnectorSettings.DATE_LOCALES.indexOf(it) }
+                .firstOrNull { it != -1 }
+                ?: 0,
             dateFormatIndex = 1,
             dateCaps = true,
         )
         logger.info { "Applying settings: $settings" }
         connection.execCommand(ConnectorCommand.SetSettings(settings))
+
+        mediaSessionListener.currentTitle
+            .onEach { title ->
+                logger.info { "Updating audio title: '$title'" }
+                connection.execCommand(ConnectorCommand.SetAudioTitle(title.toUpperCase(Locale.ROOT)))
+            }
+            .launchIn(scope)
     }
 
-    private suspend fun audioTitleUpdateLoop() {
-        mediaSessionListener.currentTitle.collect { title ->
-            logger.info { "Updating audio title: $title" }
-            connection?.execCommand(ConnectorCommand.SetAudioTitle(title.toUpperCase(Locale.ROOT)))
-        }
+    private fun showStatusToast(text: String) {
+        statusToast?.cancel()
+        statusToast = Toast.makeText(this, text, Toast.LENGTH_SHORT).apply { show() }
     }
 
-    private fun handleException(context: CoroutineContext, throwable: Throwable) {
-        logger.error(throwable) { "Connection failure" + context[CoroutineName]?.let { " in $it" }.orEmpty() }
-        Toast.makeText(this@SpaceshipConnectionService, "Spaceship disconnected", Toast.LENGTH_LONG).show()
-        close("failure")
+    private fun showStatusNotification(title: String, text: String? = null) {
+        val notification = buildStatusNotification(title, text)
+        notificationManager.notify(STATUS_NOTIFICATION_ID, notification)
     }
 
-    private fun buildNotification(title: String, text: String? = null): Notification {
+    private fun buildStatusNotification(title: String, text: String? = null): Notification {
         return Notification.Builder(this, notificationChannel.id)
             .setSmallIcon(R.drawable.ic_auto)
             .setContentTitle(title)
@@ -129,8 +139,12 @@ class SpaceshipConnectionService : Service() {
     }
 
     private fun getMainNotificationChannel(): NotificationChannel {
-        return notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID) ?: run {
-            NotificationChannel(NOTIFICATION_CHANNEL_ID, "Connection", NotificationManager.IMPORTANCE_LOW).also {
+        return notificationManager.getNotificationChannel(STATUS_NOTIFICATION_CHANNEL_ID) ?: run {
+            NotificationChannel(
+                STATUS_NOTIFICATION_CHANNEL_ID,
+                "Connection status",
+                NotificationManager.IMPORTANCE_LOW
+            ).also {
                 notificationManager.createNotificationChannel(it)
             }
         }
@@ -143,11 +157,7 @@ class SpaceshipConnectionService : Service() {
         logger.info { "Connection is closed ($message)" }
         unregisterReceiver(detachReceiver)
         mediaSessionManager.removeOnActiveSessionsChangedListener(mediaSessionListener)
-        coroutineScope.cancel(message)
-        GlobalScope.launch {
-            connection?.close()
-        }
-        notificationManager.notify(NOTIFICATION_ID, buildNotification("Disconnected"))
+        serviceCoroutineScope.cancel(message)
         stopSelf()
     }
 
@@ -244,8 +254,8 @@ class SpaceshipConnectionService : Service() {
     companion object {
 
         private val logger = Logger.currentClass()
-        private const val NOTIFICATION_ID = NotificationIds.CONNECTION
-        private const val NOTIFICATION_CHANNEL_ID = "connection"
+        private const val STATUS_NOTIFICATION_ID = NotificationIds.CONNECTION_STATUS
+        private const val STATUS_NOTIFICATION_CHANNEL_ID = "connection"
 
     }
 
