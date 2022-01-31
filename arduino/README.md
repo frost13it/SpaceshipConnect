@@ -4,6 +4,8 @@ Connects to audio system, HVAC system and combined display of Honda Civic VIII 5
 
 ![display segments](doc/display_all_segments.png)
 
+[Main sketch](SpaceshipConnector.ino) controls the display and can interact with a connected Android device.
+
 Contains code to work with any MSM6775-driven LCD and DS1302 real-time clock.
 
 The `SpaceshipDisplay` class provides high-level control of all LCD segments.
@@ -20,5 +22,3 @@ Example:
 Text section uses a [font](display/section_text.cpp) supporting a wide range of characters
 in [Windows-1251](https://en.wikipedia.org/wiki/Windows-1251) encoding.
 
-[Main sketch](SpaceshipConnector.ino) provides functionality similar to a Connects2 CTSHO002 adapter.
-Additionally, it can interact with a connected Android device.
