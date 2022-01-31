@@ -114,7 +114,7 @@ class SpaceshipConnectionService : Service() {
         mediaSessionListener.currentTitle
             .onEach { title ->
                 logger.info { "Updating audio title: '$title'" }
-                connection.execCommand(ConnectorCommand.SetAudioTitle(title.toUpperCase(Locale.ROOT)))
+                connection.execCommand(ConnectorCommand.SetAudioTitle(title.uppercase()))
             }
             .launchIn(scope)
     }

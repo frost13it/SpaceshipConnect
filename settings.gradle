@@ -1,6 +1,6 @@
 pluginManagement {
-    def kotlinVersion = '1.4.32'
-    def androidVersion = '4.1.1'
+    def kotlinVersion = '1.5.31'
+    def androidVersion = '7.0.0'
 
     resolutionStrategy {
         eachPlugin {
